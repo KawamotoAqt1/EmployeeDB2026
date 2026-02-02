@@ -1,0 +1,17 @@
+services:
+  db:
+    image: postgres:15
+    container_name: employee-db-postgres
+    environment:
+      POSTGRES_USER: employee_user
+      POSTGRES_PASSWORD: employee_pass
+      POSTGRES_DB: employee_db
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

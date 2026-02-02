@@ -1,0 +1,156 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// Employee Management
+// ============================================
+
+/// 社員マスタ
+model Employee {
+  id                    String   @id @default(uuid()) @db.Uuid
+  employeeNumber        String   @unique @map("employee_number") @db.VarChar(20)
+  employeeUniqueNumber  String?  @unique @map("employee_unique_number") @db.VarChar(50)
+  fullName              String   @map("full_name") @db.VarChar(100)
+  fullNameKana          String?  @map("full_name_kana") @db.VarChar(100)
+  email                 String?  @unique @db.VarChar(255)
+  birthDate             DateTime? @map("birth_date") @db.Date
+  gender                Gender?
+  contractType          ContractType? @map("contract_type")
+  department            String?  @db.VarChar(100)
+  position              String?  @db.VarChar(100)
+  location              String?  @db.VarChar(100)
+  country               String?  @db.VarChar(50)
+  residence             String?  @db.VarChar(100)
+  station               String?  @db.VarChar(100)
+  hireDate              DateTime? @map("hire_date") @db.Date
+  contractEndDate       DateTime? @map("contract_end_date") @db.Date
+  status                EmployeeStatus @default(ACTIVE)
+  remark                String?  @db.Text
+  photoUrl              String?  @map("photo_url") @db.VarChar(500)
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  skills                EmployeeSkill[]
+
+  @@map("employees")
+}
+
+/// 性別
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+/// 契約形態
+enum ContractType {
+  FULL_TIME    // 正社員
+  CONTRACT     // 契約社員
+  PART_TIME    // パートタイム
+  TEMPORARY    // 派遣社員
+  INTERN       // インターン
+  OUTSOURCE    // 業務委託
+}
+
+/// 社員ステータス
+enum EmployeeStatus {
+  ACTIVE       // 在籍中
+  INACTIVE     // 休職中
+  RESIGNED     // 退職済
+  PENDING      // 入社予定
+}
+
+// ============================================
+// Tag System (Skills, Technologies, etc.)
+// ============================================
+
+/// タグカテゴリマスタ
+model TagCategory {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  parentId    String?  @map("parent_id") @db.Uuid
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Self-referencing relation for hierarchical categories
+  parent      TagCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    TagCategory[] @relation("CategoryHierarchy")
+
+  // Relations
+  tags        Tag[]
+
+  @@map("tag_categories")
+}
+
+/// タグマスタ
+model Tag {
+  id          String   @id @default(uuid()) @db.Uuid
+  categoryId  String   @map("category_id") @db.Uuid
+  name        String   @db.VarChar(100)
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  category    TagCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  employeeSkills EmployeeSkill[]
+
+  @@unique([categoryId, name])
+  @@map("tags")
+}
+
+/// 社員スキル（社員とタグの中間テーブル）
+model EmployeeSkill {
+  id          String   @id @default(uuid()) @db.Uuid
+  employeeId  String   @map("employee_id") @db.Uuid
+  tagId       String   @map("tag_id") @db.Uuid
+  level       SkillLevel @default(BEGINNER)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  tag         Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, tagId])
+  @@map("employee_skills")
+}
+
+/// スキルレベル
+enum SkillLevel {
+  BEGINNER      // 初級
+  INTERMEDIATE  // 中級
+  ADVANCED      // 上級
+  EXPERT        // エキスパート
+}
+
+// ============================================
+// User Authentication
+// ============================================
+
+/// ユーザーマスタ（認証用）
+model User {
+  id            String   @id @default(uuid()) @db.Uuid
+  email         String   @unique @db.VarChar(255)
+  passwordHash  String   @map("password_hash") @db.VarChar(255)
+  role          UserRole @default(VIEWER)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("users")
+}
+
+/// ユーザーロール
+enum UserRole {
+  ADMIN   // 管理者（全権限、ユーザー管理含む）
+  EDITOR  // 編集者（社員・タグ管理可能、ユーザー管理不可）
+  VIEWER  // 閲覧者（読み取りのみ）
+}
