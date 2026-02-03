@@ -1,7 +1,11 @@
-import express, { Express, Request, Response } from 'express';
-import cors from 'cors';
 import path from 'path';
 import dotenv from 'dotenv';
+
+// 環境変数を最初に読み込む（backend フォルダの .env、起動場所に依存しない）
+dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
+
+import express, { Express, Request, Response } from 'express';
+import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
 
 // ルーター
@@ -15,9 +19,6 @@ import projectsRouter from './routes/projects';
 
 // ミドルウェア
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
-
-// 環境変数の読み込み
-dotenv.config();
 
 // Prismaクライアントの初期化
 const prisma = new PrismaClient({

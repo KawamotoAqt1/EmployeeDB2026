@@ -32,8 +32,14 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction): P
       throw new AppError('INVALID_CREDENTIALS', 'メールアドレスまたはパスワードが正しくありません', 401);
     }
 
-    // パスワード検証
-    const isValidPassword = await bcrypt.compare(password, user.passwordHash);
+    // パスワード検証（bcrypt の形式不正時は 500 ではなく 401 で返す）
+    let isValidPassword = false;
+    try {
+      isValidPassword = await bcrypt.compare(password, user.passwordHash);
+    } catch (bcryptError) {
+      console.error('Login: bcrypt.compare failed (invalid hash?)', bcryptError);
+      throw new AppError('INVALID_CREDENTIALS', 'メールアドレスまたはパスワードが正しくありません', 401);
+    }
 
     if (!isValidPassword) {
       throw new AppError('INVALID_CREDENTIALS', 'メールアドレスまたはパスワードが正しくありません', 401);
@@ -58,6 +64,7 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction): P
       },
     });
   } catch (error) {
+    console.error('[auth/login] Error:', error);
     next(error);
   }
 });
