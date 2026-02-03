@@ -1,0 +1,50 @@
+0: FullName
+1: EmployeeNumber
+2: FullNameKana
+3: ContractType
+4: BirthDate
+5: Gender
+6: Department
+7: Position
+8: Location
+9: Residence
+10: Country
+11: Email
+12: HireDate
+13: ContractEndDate
+14: Skills
+15: Status
+16: Assigned
+17: Remark
+18: Photo
+19: station
+20: パス
+21: アイテムの種類
+22: 髙田 敬子
+23: 200214
+24: タカタ ケイコ
+25: 正社員
+26: 女性
+27: 開発２課
+28: 係長
+29: 大阪
+30: 大阪府門真市
+31: 日本
+32: takata@id.aqtor.co.jp
+33: C#、VBA、C++、PHP、ASP
+34: 在籍
+35: ytソリューションズ
+36: 高田
+37: {"fileName":"Reserved_ImageAttachment_[5]_[Photo][32]_[a027b6c5e7b34041b23e450d8cd2a28a][2]_[13].png","originalImageName":"827b3871-2a44-439e-926b-a43e28ac4d66"}
+38: sites/AqtorEmployeeData/Lists/employees
+39: アイテム
+40: 林口 薫
+41: 200217
+42: ハヤシグチカオル
+43: 一般
+44: 京都府京都市南区
+45: k.hayashiguchi@id.aqtor.co.jp
+46: 評価実施
+47: 村田機械
+48: {"fileName":"Reserved_ImageAttachment_[5]_[Photo][32]_[e1a0e6a2051c45d79792d2c5e05dc43f][1]_[2].png","originalImageName":"104392de-588d-4303-bca6-72ddfde21411"}
+49: 今度 健二

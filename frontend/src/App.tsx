@@ -2,7 +2,20 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
 import { Layout } from '@/components/layout';
-import { Login, EmployeeList, EmployeeDetail, EmployeeForm, TagManagement, UserManagement } from '@/pages';
+import {
+  Login,
+  EmployeeList,
+  EmployeeDetail,
+  EmployeeForm,
+  TagManagement,
+  UserManagement,
+  CompanyList,
+  CompanyDetail,
+  CompanyForm,
+  ProjectList,
+  ProjectDetail,
+  ProjectForm,
+} from '@/pages';
 
 // React Query Client
 const queryClient = new QueryClient({
@@ -149,6 +162,88 @@ function AppRoutes() {
             <AdminRoute>
               <UserManagement />
             </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Company Routes */}
+      <Route
+        path="/companies"
+        element={
+          <ProtectedRoute>
+            <CompanyList />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/companies/new"
+        element={
+          <ProtectedRoute>
+            <EditorRoute>
+              <CompanyForm />
+            </EditorRoute>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/companies/:id"
+        element={
+          <ProtectedRoute>
+            <CompanyDetail />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/companies/:id/edit"
+        element={
+          <ProtectedRoute>
+            <EditorRoute>
+              <CompanyForm />
+            </EditorRoute>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Project Routes */}
+      <Route
+        path="/projects"
+        element={
+          <ProtectedRoute>
+            <ProjectList />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/projects/new"
+        element={
+          <ProtectedRoute>
+            <EditorRoute>
+              <ProjectForm />
+            </EditorRoute>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/projects/:id"
+        element={
+          <ProtectedRoute>
+            <ProjectDetail />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/projects/:id/edit"
+        element={
+          <ProtectedRoute>
+            <EditorRoute>
+              <ProjectForm />
+            </EditorRoute>
           </ProtectedRoute>
         }
       />

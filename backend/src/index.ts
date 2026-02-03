@@ -10,6 +10,8 @@ import employeesRouter from './routes/employees';
 import tagsRouter from './routes/tags';
 import importRouter from './routes/import';
 import usersRouter from './routes/users';
+import companiesRouter from './routes/companies';
+import projectsRouter from './routes/projects';
 
 // ミドルウェア
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
@@ -31,12 +33,34 @@ const PORT = process.env.PORT ?? 3001;
 // ============================================
 
 // CORS設定
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',')
+  : ['http://localhost:3000', 'http://localhost:5173'];
+
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
+    origin: (origin, callback) => {
+      console.log('CORS check - Received origin:', origin);
+      console.log('CORS check - Allowed origins:', allowedOrigins);
+
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        console.log('CORS check - Origin allowed');
+        callback(null, true);
+      } else {
+        console.warn(`CORS rejected origin: ${origin}`);
+        console.warn(`Expected one of: ${allowedOrigins.join(', ')}`);
+        callback(null, false);
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    exposedHeaders: ['Content-Type', 'Authorization'],
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   })
 );
 
@@ -118,6 +142,29 @@ app.get('/api', (_req: Request, res: Response) => {
         updateTag: 'PUT /api/tags/:id',
         deleteTag: 'DELETE /api/tags/:id',
       },
+      companies: {
+        list: 'GET /api/companies',
+        get: 'GET /api/companies/:id',
+        create: 'POST /api/companies',
+        update: 'PUT /api/companies/:id',
+        delete: 'DELETE /api/companies/:id',
+        offices: 'GET /api/companies/:companyId/offices',
+        departments: 'GET /api/companies/:companyId/departments',
+        departmentsTree: 'GET /api/companies/:companyId/departments/tree',
+        contacts: 'GET /api/companies/:companyId/contacts',
+      },
+      projects: {
+        list: 'GET /api/projects',
+        get: 'GET /api/projects/:id',
+        create: 'POST /api/projects',
+        update: 'PUT /api/projects/:id',
+        delete: 'DELETE /api/projects/:id',
+        assignments: 'GET /api/projects/:projectId/assignments',
+        addAssignment: 'POST /api/projects/:projectId/assignments',
+        updateAssignment: 'PUT /api/projects/:projectId/assignments/:id',
+        deleteAssignment: 'DELETE /api/projects/:projectId/assignments/:id',
+        employeeAssignments: 'GET /api/employees/:employeeId/assignments',
+      },
       import: {
         preview: 'POST /api/import/preview',
         employees: 'POST /api/import/employees',
@@ -143,8 +190,14 @@ app.use('/api/employees', employeesRouter);
 // タグルーター
 app.use('/api/tags', tagsRouter);
 
+// 企業ルーター
+app.use('/api/companies', companiesRouter);
+
 // インポートルーター
 app.use('/api/import', importRouter);
+
+// 案件ルーター
+app.use('/api/projects', projectsRouter);
 
 // ============================================
 // Legacy Routes (for backward compatibility)

@@ -1,4 +1,21 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  rectSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Button, Input, Modal } from '@/components/ui';
 import {
   useTags,
@@ -8,10 +25,82 @@ import {
   useCreateTagCategory,
   useUpdateTagCategory,
   useDeleteTagCategory,
+  useReorderTags,
 } from '@/hooks/useTags';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import type { Tag, TagCategory } from '@/types';
+
+// ドラッグ可能なタグアイテムコンポーネント
+interface SortableTagItemProps {
+  tag: Tag;
+  onEdit: () => void;
+  onDelete: () => void;
+}
+
+function SortableTagItem({ tag, onEdit, onDelete }: SortableTagItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: tag.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 1000 : 'auto',
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`group relative bg-gray-50 hover:bg-gray-100 rounded-lg p-3 transition-colors ${
+        isDragging ? 'shadow-lg ring-2 ring-blue-500' : ''
+      }`}
+    >
+      {/* ドラッグハンドル */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute left-1 top-1/2 -translate-y-1/2 p-1 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
+        title="ドラッグして並び替え"
+      >
+        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+        </svg>
+      </div>
+      <span className="text-sm font-medium text-gray-700 block truncate pl-5 pr-6">
+        {tag.name}
+      </span>
+      {/* Actions */}
+      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+        <button
+          onClick={onEdit}
+          className="p-1 text-gray-400 hover:text-blue-600 hover:bg-white rounded"
+          title="編集"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+        </button>
+        <button
+          onClick={onDelete}
+          className="p-1 text-gray-400 hover:text-red-600 hover:bg-white rounded"
+          title="削除"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
 
 type ModalType = 'createCategory' | 'editCategory' | 'deleteCategory' | 'createTag' | 'editTag' | 'deleteTag' | null;
 
@@ -25,6 +114,7 @@ export function TagManagement() {
   const createTag = useCreateTag();
   const updateTag = useUpdateTag();
   const deleteTag = useDeleteTag();
+  const reorderTags = useReorderTags();
 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [modalType, setModalType] = useState<ModalType>(null);
@@ -35,6 +125,18 @@ export function TagManagement() {
   // フォーム状態
   const [categoryForm, setCategoryForm] = useState({ name: '', code: '' });
   const [tagForm, setTagForm] = useState({ name: '', categoryId: '' });
+
+  // dnd-kit センサー設定
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px動かしてからドラッグ開始
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // 管理者でない場合はリダイレクト
   if (user?.role?.toUpperCase() !== 'ADMIN') {
@@ -49,12 +151,39 @@ export function TagManagement() {
   // 現在のカテゴリ
   const currentCategory = categories?.find((c) => c.id === activeCategory);
 
-  // カテゴリ別タグ（検索フィルタ付き）
-  const currentTags = tags?.filter((tag) => {
-    const matchesCategory = tag.categoryId === activeCategory;
-    const matchesSearch = !searchQuery || tag.name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
-  }) || [];
+  // カテゴリ別タグ（検索フィルタ付き、sortOrder順にソート）
+  const currentTags = useMemo(() => {
+    const filtered = tags?.filter((tag) => {
+      const matchesCategory = tag.categoryId === activeCategory;
+      const matchesSearch = !searchQuery || tag.name.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesCategory && matchesSearch;
+    }) || [];
+    // sortOrder順にソート
+    return [...filtered].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  }, [tags, activeCategory, searchQuery]);
+
+  // ドラッグ終了時のハンドラー
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = currentTags.findIndex((tag) => tag.id === active.id);
+      const newIndex = currentTags.findIndex((tag) => tag.id === over.id);
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        // 新しい順序を計算
+        const reorderedTags = arrayMove(currentTags, oldIndex, newIndex);
+        const tagIds = reorderedTags.map((tag) => tag.id);
+
+        // APIで保存
+        try {
+          await reorderTags.mutateAsync(tagIds);
+        } catch (error) {
+          console.error('Failed to reorder tags:', error);
+        }
+      }
+    }
+  };
 
   // モーダルを開く
   const openModal = (type: ModalType, category?: TagCategory, tag?: Tag) => {
@@ -255,6 +384,9 @@ export function TagManagement() {
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
+              <span className="text-xs text-gray-400 hidden sm:inline">
+                ドラッグで並び替え可能
+              </span>
               <Button
                 variant="primary"
                 size="sm"
@@ -270,39 +402,30 @@ export function TagManagement() {
             {/* Tags Grid */}
             <div className="p-6">
               {currentTags.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                  {currentTags.map((tag) => (
-                    <div
-                      key={tag.id}
-                      className="group relative bg-gray-50 hover:bg-gray-100 rounded-lg p-3 transition-colors"
-                    >
-                      <span className="text-sm font-medium text-gray-700 block truncate pr-6">
-                        {tag.name}
-                      </span>
-                      {/* Actions */}
-                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                        <button
-                          onClick={() => openModal('editTag', currentCategory, tag)}
-                          className="p-1 text-gray-400 hover:text-blue-600 hover:bg-white rounded"
-                          title="編集"
-                        >
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => openModal('deleteTag', currentCategory, tag)}
-                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-white rounded"
-                          title="削除"
-                        >
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
-                      </div>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext items={currentTags.map((t) => t.id)} strategy={rectSortingStrategy}>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                      {currentTags.map((tag) => (
+                        <SortableTagItem
+                          key={tag.id}
+                          tag={tag}
+                          onEdit={() => openModal('editTag', currentCategory, tag)}
+                          onDelete={() => openModal('deleteTag', currentCategory, tag)}
+                        />
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </SortableContext>
+                  {reorderTags.isPending && (
+                    <div className="mt-2 text-xs text-gray-500 flex items-center gap-1">
+                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                      保存中...
+                    </div>
+                  )}
+                </DndContext>
               ) : (
                 <div className="text-center py-12">
                   <svg

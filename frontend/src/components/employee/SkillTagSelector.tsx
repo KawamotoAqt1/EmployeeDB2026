@@ -120,7 +120,7 @@ export function SkillTagSelector({
         {expandedCategory && tagsByCategory?.[expandedCategory] && (
           <div className="p-4">
             <div className="flex flex-wrap gap-2">
-              {tagsByCategory[expandedCategory].map((tag) => {
+              {tagsByCategory[expandedCategory].map((tag: any) => {
                 const isSelected = isTagSelected(tag.id);
                 const isExisting = isTagExisting(tag.id);
                 const isCurrentlySelecting = selectedTag?.id === tag.id;

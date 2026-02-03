@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient, API_ENDPOINTS } from '@/api/config';
+import { apiClient } from '@/api/config';
 
 // Query keys
 export const userKeys = {

@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Button, Badge, SkillBadge, Modal } from '@/components/ui';
 import { useEmployee, useDeleteEmployee, useUploadEmployeeImage } from '@/hooks/useEmployees';
 import { useAuth } from '@/hooks/useAuth';
-import { EmployeeStatusLabels, type EmployeeSkill } from '@/types';
+import { EmployeeStatusLabels, ContractTypeLabels, type EmployeeSkill, type ContractType } from '@/types';
 import { API_BASE_URL } from '@/api/config';
 
 export function EmployeeDetail() {
@@ -197,7 +197,11 @@ export function EmployeeDetail() {
             </div>
             <div className="flex">
               <dt className="w-24 flex-shrink-0 text-sm text-gray-500">契約形態</dt>
-              <dd className="text-sm text-gray-900">{employee.contractType || '-'}</dd>
+              <dd className="text-sm text-gray-900">
+                {employee.contractType
+                  ? ContractTypeLabels[employee.contractType as ContractType] || employee.contractType
+                  : '-'}
+              </dd>
             </div>
             <div className="flex">
               <dt className="w-24 flex-shrink-0 text-sm text-gray-500">入社日</dt>
@@ -269,18 +273,20 @@ export function EmployeeDetail() {
           )}
         </h2>
 
-        {employee.skills && employee.skills.length > 0 ? (
+        {employee.skills && employee.skills.filter(s => s.tag?.name).length > 0 ? (
           <div className="space-y-4">
             {/* カテゴリ別にグループ化 */}
             {Object.entries(
-              employee.skills.reduce<Record<string, EmployeeSkill[]>>((acc, skill) => {
-                const categoryName = skill.tag?.category?.name || '未分類';
-                if (!acc[categoryName]) {
-                  acc[categoryName] = [];
-                }
-                acc[categoryName].push(skill);
-                return acc;
-              }, {})
+              employee.skills
+                .filter(skill => skill.tag?.name)
+                .reduce<Record<string, EmployeeSkill[]>>((acc, skill) => {
+                  const categoryName = skill.tag?.category?.name || '未分類';
+                  if (!acc[categoryName]) {
+                    acc[categoryName] = [];
+                  }
+                  acc[categoryName].push(skill);
+                  return acc;
+                }, {})
             ).map(([categoryName, skills]) => (
               <div key={categoryName}>
                 <h3 className="text-sm font-medium text-gray-500 mb-2">{categoryName}</h3>
@@ -298,6 +304,78 @@ export function EmployeeDetail() {
           </div>
         ) : (
           <p className="text-sm text-gray-500">スキルが登録されていません</p>
+        )}
+      </div>
+
+      {/* Project Assignments */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          参画履歴
+          {employee.assignments && employee.assignments.length > 0 && (
+            <span className="ml-2 text-sm font-normal text-gray-500">
+              ({employee.assignments.length}件)
+            </span>
+          )}
+        </h2>
+
+        {employee.assignments && employee.assignments.length > 0 ? (
+          <div className="space-y-3">
+            {employee.assignments
+              .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())
+              .map(assignment => {
+                const isActive = !assignment.endDate || new Date(assignment.endDate) > new Date();
+                return (
+                  <div key={assignment.id} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-medium text-gray-900">
+                            {assignment.project ? (
+                              <Link
+                                to={`/projects/${assignment.project.id}`}
+                                className="text-blue-600 hover:underline"
+                              >
+                                {assignment.project.name}
+                              </Link>
+                            ) : (
+                              '不明な案件'
+                            )}
+                          </h3>
+                          {isActive && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                              参画中
+                            </span>
+                          )}
+                        </div>
+                        {assignment.project?.company && (
+                          <p className="text-sm text-gray-600 mt-1">
+                            {assignment.project.company.name}
+                          </p>
+                        )}
+                        {assignment.role && (
+                          <p className="text-sm text-gray-600 mt-1">
+                            役割: {assignment.role}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right ml-4">
+                        <div className="text-sm text-gray-500">
+                          {new Date(assignment.startDate).toLocaleDateString('ja-JP')}
+                          {assignment.endDate && (
+                            <> ~ {new Date(assignment.endDate).toLocaleDateString('ja-JP')}</>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    {assignment.remark && (
+                      <p className="text-sm text-gray-600 mt-2">{assignment.remark}</p>
+                    )}
+                  </div>
+                );
+              })}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500">参画履歴がありません</p>
         )}
       </div>
 

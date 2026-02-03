@@ -41,6 +41,7 @@ model Employee {
 
   // Relations
   skills                EmployeeSkill[]
+  projectAssignments    ProjectAssignment[]
 
   @@map("employees")
 }
@@ -153,4 +154,213 @@ enum UserRole {
   ADMIN   // 管理者（全権限、ユーザー管理含む）
   EDITOR  // 編集者（社員・タグ管理可能、ユーザー管理不可）
   VIEWER  // 閲覧者（読み取りのみ）
+}
+
+// ============================================
+// Company & Project Management (Phase 2)
+// ============================================
+
+/// 企業マスタ
+model Company {
+  id          String          @id @default(uuid()) @db.Uuid
+  code        String          @unique @db.VarChar(50)
+  name        String          @db.VarChar(200)
+  nameKana    String?         @map("name_kana") @db.VarChar(200)
+  postalCode  String?         @map("postal_code") @db.VarChar(10)
+  address     String?         @db.Text
+  phone       String?         @db.VarChar(20)
+  website     String?         @db.VarChar(500)
+  industry    String?         @db.VarChar(100)
+  status      CompanyStatus   @default(ACTIVE)
+  remark      String?         @db.Text
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  // Relations
+  offices     CompanyOffice[]
+  departments CompanyDepartment[]
+  contacts    CompanyContact[]
+  projects    Project[]
+
+  @@index([code], name: "idx_companies_code")
+  @@index([name], name: "idx_companies_name")
+  @@index([status], name: "idx_companies_status")
+  @@map("companies")
+}
+
+/// 企業ステータス
+enum CompanyStatus {
+  ACTIVE      // 取引中
+  INACTIVE    // 休止中
+  TERMINATED  // 取引終了
+}
+
+/// 企業拠点
+model CompanyOffice {
+  id              String    @id @default(uuid()) @db.Uuid
+  companyId       String    @map("company_id") @db.Uuid
+  name            String    @db.VarChar(200)
+  postalCode      String?   @map("postal_code") @db.VarChar(10)
+  address         String?   @db.Text
+  phone           String?   @db.VarChar(20)
+  isHeadquarters  Boolean   @default(false) @map("is_headquarters")
+  sortOrder       Int       @default(0) @map("sort_order")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  departments CompanyDepartment[]
+
+  @@index([companyId], name: "idx_company_offices_company_id")
+  @@map("company_offices")
+}
+
+/// 企業部署（階層構造）
+model CompanyDepartment {
+  id          String              @id @default(uuid()) @db.Uuid
+  companyId   String              @map("company_id") @db.Uuid
+  officeId    String?             @map("office_id") @db.Uuid
+  parentId    String?             @map("parent_id") @db.Uuid
+  type        DepartmentType
+  name        String              @db.VarChar(200)
+  sortOrder   Int                 @default(0) @map("sort_order")
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+
+  // Relations
+  company     Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  office      CompanyOffice?      @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  parent      CompanyDepartment?  @relation("DepartmentHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    CompanyDepartment[] @relation("DepartmentHierarchy")
+  contacts    CompanyContact[]
+  projects    Project[]
+
+  @@index([companyId], name: "idx_company_departments_company_id")
+  @@index([parentId], name: "idx_company_departments_parent_id")
+  @@map("company_departments")
+}
+
+/// 部署タイプ
+enum DepartmentType {
+  DIVISION    // 事業部
+  DEPARTMENT  // 部
+  SECTION     // 課
+  UNIT        // 係
+  OTHER       // その他
+}
+
+/// 企業担当窓口
+model CompanyContact {
+  id            String             @id @default(uuid()) @db.Uuid
+  companyId     String             @map("company_id") @db.Uuid
+  departmentId  String?            @map("department_id") @db.Uuid
+  name          String             @db.VarChar(100)
+  nameKana      String?            @map("name_kana") @db.VarChar(100)
+  title         String?            @db.VarChar(100)
+  email         String?            @db.VarChar(255)
+  phone         String?            @db.VarChar(20)
+  mobile        String?            @db.VarChar(20)
+  isPrimary     Boolean            @default(false) @map("is_primary")
+  remark        String?            @db.Text
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+
+  // Relations
+  company       Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  department    CompanyDepartment? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+
+  @@index([companyId], name: "idx_company_contacts_company_id")
+  @@index([email], name: "idx_company_contacts_email")
+  @@map("company_contacts")
+}
+
+/// 案件マスタ
+model Project {
+  id                  String             @id @default(uuid()) @db.Uuid
+  companyId           String             @map("company_id") @db.Uuid
+  departmentId        String?            @map("department_id") @db.Uuid
+  code                String             @unique @db.VarChar(50)
+  name                String             @db.VarChar(200)
+  description         String?            @db.Text
+  contractType        ContractTypeProject @map("contract_type")
+  contractStartDate   DateTime?          @map("contract_start_date") @db.Date
+  contractEndDate     DateTime?          @map("contract_end_date") @db.Date
+  deliveryDate        DateTime?          @map("delivery_date") @db.Date
+  budget              Decimal?           @db.Decimal(15, 2)
+  unitPrice           Decimal?           @map("unit_price") @db.Decimal(15, 2)
+  status              ProjectStatus      @default(PROPOSAL)
+  location            String?            @db.VarChar(200)
+  remark              String?            @db.Text
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+
+  // Relations
+  company             Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  department          CompanyDepartment? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  assignments         ProjectAssignment[]
+
+  @@index([code], name: "idx_projects_code")
+  @@index([companyId], name: "idx_projects_company_id")
+  @@index([status], name: "idx_projects_status")
+  @@index([contractStartDate, contractEndDate], name: "idx_projects_contract_dates")
+  @@map("projects")
+}
+
+/// 案件契約形態
+enum ContractTypeProject {
+  DISPATCH  // 派遣
+  SES       // 準委任（SES）
+  CONTRACT  // 請負
+}
+
+/// 案件ステータス
+enum ProjectStatus {
+  PROPOSAL      // 提案中
+  IN_PROGRESS   // 進行中
+  COMPLETED     // 完了
+  CANCELLED     // 中止
+  ON_HOLD       // 保留
+}
+
+/// 案件参画（社員と案件の紐付け）
+model ProjectAssignment {
+  id                    String              @id @default(uuid()) @db.Uuid
+  projectId             String              @map("project_id") @db.Uuid
+  employeeId            String              @map("employee_id") @db.Uuid
+  role                  String?             @db.VarChar(100)
+  assignmentStartDate   DateTime            @map("assignment_start_date") @db.Date
+  assignmentEndDate     DateTime?           @map("assignment_end_date") @db.Date
+  workloadPercentage    Int?                @map("workload_percentage")
+  unitPrice             Decimal?            @map("unit_price") @db.Decimal(15, 2)
+  billingType           BillingType?        @map("billing_type")
+  status                AssignmentStatus    @default(SCHEDULED)
+  remark                String?             @db.Text
+  createdAt             DateTime            @default(now()) @map("created_at")
+  updatedAt             DateTime            @updatedAt @map("updated_at")
+
+  // Relations
+  project               Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  employee              Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([projectId], name: "idx_project_assignments_project_id")
+  @@index([employeeId], name: "idx_project_assignments_employee_id")
+  @@index([assignmentStartDate, assignmentEndDate], name: "idx_project_assignments_dates")
+  @@index([status], name: "idx_project_assignments_status")
+  @@map("project_assignments")
+}
+
+/// 請求形態
+enum BillingType {
+  HOURLY   // 時給
+  DAILY    // 日給
+  MONTHLY  // 月給
+  FIXED    // 固定額
+}
+
+/// 参画ステータス
+enum AssignmentStatus {
+  SCHEDULED     // 予定
+  IN_PROGRESS   // 参画中
+  COMPLETED     // 終了
 }

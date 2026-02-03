@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { apiClient, API_ENDPOINTS } from '@/api/config';
 import type {
   EmployeeSearchParams,
@@ -71,6 +71,10 @@ export function useEmployee(id: string | undefined) {
       return response.data.data;
     },
     enabled: !!id,
+    // Cache data for 5 minutes to reduce flickering when switching between employees
+    staleTime: 5 * 60 * 1000,
+    // Keep previous data while loading new employee to prevent flickering
+    placeholderData: keepPreviousData,
   });
 }
 

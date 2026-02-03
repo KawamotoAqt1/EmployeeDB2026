@@ -8,6 +8,10 @@ export default {
     extend: {
       colors: {
         primary: {
+          DEFAULT: '#0078D4',
+          dark: '#106EBE',
+          light: '#DEECF9',
+          hover: '#005A9E',
           50: '#eff6ff',
           100: '#dbeafe',
           200: '#bfdbfe',
@@ -19,6 +23,11 @@ export default {
           800: '#1e40af',
           900: '#1e3a8a',
           950: '#172554',
+        },
+        surface: {
+          DEFAULT: '#FFFFFF',
+          secondary: '#F3F2F1',
+          tertiary: '#EDEBE9',
         },
       },
       fontFamily: {

@@ -1,11 +1,10 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { requireAuth, requireAdmin, requireEditor } from '../middleware/auth';
+import { requireAuth, requireEditor } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
+import { prisma } from '../lib/prisma';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // バリデーションスキーマ
 
@@ -309,6 +308,70 @@ router.delete('/:id', requireAuth, requireEditor, async (req: Request, res: Resp
     res.status(200).json({
       success: true,
       data: { message: 'タグを削除しました' },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 並び替えスキーマ
+const reorderTagsSchema = z.object({
+  tagIds: z.array(z.string().uuid()),
+});
+
+/**
+ * PUT /api/tags/reorder
+ * タグの並び順を更新（admin/editor）
+ */
+router.put('/reorder', requireAuth, requireEditor, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { tagIds } = reorderTagsSchema.parse(req.body);
+
+    // トランザクションで一括更新
+    await prisma.$transaction(
+      tagIds.map((tagId, index) =>
+        prisma.tag.update({
+          where: { id: tagId },
+          data: { sortOrder: index },
+        })
+      )
+    );
+
+    res.status(200).json({
+      success: true,
+      data: { message: 'タグの並び順を更新しました' },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// カテゴリ並び替えスキーマ
+const reorderCategoriesSchema = z.object({
+  categoryIds: z.array(z.string().uuid()),
+});
+
+/**
+ * PUT /api/tags/categories/reorder
+ * カテゴリの並び順を更新（admin/editor）
+ */
+router.put('/categories/reorder', requireAuth, requireEditor, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { categoryIds } = reorderCategoriesSchema.parse(req.body);
+
+    // トランザクションで一括更新
+    await prisma.$transaction(
+      categoryIds.map((categoryId, index) =>
+        prisma.tagCategory.update({
+          where: { id: categoryId },
+          data: { sortOrder: index },
+        })
+      )
+    );
+
+    res.status(200).json({
+      success: true,
+      data: { message: 'カテゴリの並び順を更新しました' },
     });
   } catch (error) {
     next(error);

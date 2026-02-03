@@ -170,6 +170,37 @@ export function useDeleteTagCategory() {
   });
 }
 
+// タグの並び替え
+export function useReorderTags() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (tagIds: string[]) => {
+      const response = await apiClient.put('/tags/reorder', { tagIds });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: tagKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: tagKeys.categories });
+    },
+  });
+}
+
+// カテゴリの並び替え
+export function useReorderCategories() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (categoryIds: string[]) => {
+      const response = await apiClient.put('/tags/categories/reorder', { categoryIds });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: tagKeys.categories });
+    },
+  });
+}
+
 // タグとカテゴリをまとめて取得するカスタムフック
 export function useTags() {
   const tagsQuery = useAllTags();

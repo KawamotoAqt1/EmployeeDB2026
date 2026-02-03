@@ -146,6 +146,27 @@ export const API_ENDPOINTS = {
     delete: (id: string) => `/users/${id}`,
     changePassword: (id: string) => `/users/${id}/password`,
   },
+  // 企業
+  companies: {
+    list: '/companies',
+    detail: (id: string) => `/companies/${id}`,
+    create: '/companies',
+    update: (id: string) => `/companies/${id}`,
+    delete: (id: string) => `/companies/${id}`,
+    offices: (id: string) => `/companies/${id}/offices`,
+    departments: (id: string) => `/companies/${id}/departments`,
+    contacts: (id: string) => `/companies/${id}/contacts`,
+  },
+  // 案件
+  projects: {
+    list: '/projects',
+    detail: (id: string) => `/projects/${id}`,
+    create: '/projects',
+    update: (id: string) => `/projects/${id}`,
+    delete: (id: string) => `/projects/${id}`,
+    assignments: (id: string) => `/projects/${id}/assignments`,
+    assignment: (projectId: string, assignmentId: string) => `/projects/${projectId}/assignments/${assignmentId}`,
+  },
 } as const;
 
 export default apiClient;

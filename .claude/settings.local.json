@@ -1,7 +1,26 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx prisma:*)"
+      "Bash(npx prisma:*)",
+      "Bash(npm run prisma:seed:*)",
+      "Bash(npx ts-node:*)",
+      "Bash(npm test:*)",
+      "Bash(npm run build:*)",
+      "Bash(ls:*)",
+      "Bash(curl:*)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjNTFlNjRkZi05ZDk0LTRhMDYtOWIxZi0yYzNmYjdlMmQwOWUiLCJlbWFpbCI6ImFkbWluQGV4YW1wbGUuY29tIiwicm9sZSI6IkFETUlOIiwiaWF0IjoxNzcwMDMyMDg4LCJleHAiOjE3NzA2MzY4ODh9.iq9XNJkr6Y1KCwHFCF_1qSZ5VmzXZrXGrwanyeSfbgQ\")",
+      "Bash(npm run dev:*)",
+      "Bash(npx vite:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(dir:*)",
+      "Bash(npx tsx:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(bash:*)",
+      "Bash(tee:*)",
+      "Bash(chmod:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

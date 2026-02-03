@@ -1,14 +1,14 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { PrismaClient, Prisma, SkillLevel } from '@prisma/client';
+import { Prisma, SkillLevel } from '@prisma/client';
 import { z } from 'zod';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { requireAuth, requireAdmin, requireEditor } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
+import { prisma } from '../lib/prisma';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // 画像アップロード設定
 const storage = multer.diskStorage({
@@ -115,23 +115,32 @@ router.get('/', requireAuth, async (req: Request, res: Response, next: NextFunct
 
     // 検索条件の構築
     const whereClause: Prisma.EmployeeWhereInput = {};
+    const andConditions: Prisma.EmployeeWhereInput[] = [];
 
-    // 全フィールド検索（部分一致または先頭一致）
+    // 全フィールド検索（スペース区切りAND検索）
     if (q) {
       const searchMode = matchType === 'prefix' ? 'startsWith' : 'contains';
-      whereClause.OR = [
-        { fullName: { [searchMode]: q, mode: 'insensitive' } },
-        { fullNameKana: { [searchMode]: q, mode: 'insensitive' } },
-        { employeeNumber: { [searchMode]: q, mode: 'insensitive' } },
-        { email: { [searchMode]: q, mode: 'insensitive' } },
-        { department: { [searchMode]: q, mode: 'insensitive' } },
-        { position: { [searchMode]: q, mode: 'insensitive' } },
-        { location: { [searchMode]: q, mode: 'insensitive' } },
-        { country: { [searchMode]: q, mode: 'insensitive' } },
-        { residence: { [searchMode]: q, mode: 'insensitive' } },
-        { station: { [searchMode]: q, mode: 'insensitive' } },
-        { remark: { [searchMode]: q, mode: 'insensitive' } },
-      ];
+      // スペース（全角・半角）で分割して単語を取得
+      const keywords = q.split(/[\s\u3000]+/).filter(k => k.length > 0);
+
+      // 各単語に対してOR検索（どのフィールドにマッチしてもOK）し、単語同士はAND検索
+      keywords.forEach(keyword => {
+        andConditions.push({
+          OR: [
+            { fullName: { [searchMode]: keyword, mode: 'insensitive' } },
+            { fullNameKana: { [searchMode]: keyword, mode: 'insensitive' } },
+            { employeeNumber: { [searchMode]: keyword, mode: 'insensitive' } },
+            { email: { [searchMode]: keyword, mode: 'insensitive' } },
+            { department: { [searchMode]: keyword, mode: 'insensitive' } },
+            { position: { [searchMode]: keyword, mode: 'insensitive' } },
+            { location: { [searchMode]: keyword, mode: 'insensitive' } },
+            { country: { [searchMode]: keyword, mode: 'insensitive' } },
+            { residence: { [searchMode]: keyword, mode: 'insensitive' } },
+            { station: { [searchMode]: keyword, mode: 'insensitive' } },
+            { remark: { [searchMode]: keyword, mode: 'insensitive' } },
+          ],
+        });
+      });
     }
 
     // フィルタ
@@ -159,20 +168,22 @@ router.get('/', requireAuth, async (req: Request, res: Response, next: NextFunct
 
         if (tagOperator === 'AND') {
           // すべてのタグを持つ社員を検索
-          whereClause.AND = tagIdList.map((tagId) => ({
-            skills: {
-              some: {
-                tagId,
-                ...(minLevelOrder > 0 && {
-                  level: {
-                    in: Object.entries(skillLevelOrder)
-                      .filter(([_, order]) => order >= minLevelOrder)
-                      .map(([lvl, _]) => lvl as SkillLevel),
-                  },
-                }),
+          tagIdList.forEach((tagId) => {
+            andConditions.push({
+              skills: {
+                some: {
+                  tagId,
+                  ...(minLevelOrder > 0 && {
+                    level: {
+                      in: Object.entries(skillLevelOrder)
+                        .filter(([_, order]) => order >= minLevelOrder)
+                        .map(([lvl, _]) => lvl as SkillLevel),
+                    },
+                  }),
+                },
               },
-            },
-          }));
+            });
+          });
         } else {
           // いずれかのタグを持つ社員を検索
           whereClause.skills = {
@@ -189,6 +200,11 @@ router.get('/', requireAuth, async (req: Request, res: Response, next: NextFunct
           };
         }
       }
+    }
+
+    // AND条件をwhereClauseに設定
+    if (andConditions.length > 0) {
+      whereClause.AND = andConditions;
     }
 
     // データ取得
@@ -582,6 +598,73 @@ router.delete('/:id/image', requireAuth, requireAdmin, async (req, res, next) =>
     res.status(200).json({
       success: true,
       data: updatedEmployee,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/employees/:id/assignments
+ * 社員の参画履歴取得
+ */
+router.get('/:id/assignments', requireAuth, async (req, res, next) => {
+  try {
+    const id = req.params.id;
+
+    // 社員の存在確認
+    const employee = await prisma.employee.findUnique({ where: { id } });
+    if (!employee) {
+      throw new AppError('NOT_FOUND', '社員が見つかりません', 404);
+    }
+
+    // クエリパラメータ
+    const status = req.query.status as string | undefined;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const skip = (page - 1) * limit;
+
+    // 検索条件
+    const whereClause: Prisma.ProjectAssignmentWhereInput = {
+      employeeId: id,
+      ...(status && { status: status as any }),
+    };
+
+    // 参画履歴取得
+    const [assignments, total] = await Promise.all([
+      prisma.projectAssignment.findMany({
+        where: whereClause,
+        skip,
+        take: limit,
+        include: {
+          project: {
+            include: {
+              company: {
+                select: {
+                  id: true,
+                  code: true,
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          assignmentStartDate: 'desc',
+        },
+      }),
+      prisma.projectAssignment.count({ where: whereClause }),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: assignments,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     next(error);
