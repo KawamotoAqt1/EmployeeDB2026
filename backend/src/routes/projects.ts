@@ -24,6 +24,11 @@ const projectListQuerySchema = z.object({
 });
 
 // 案件作成スキーマ
+// Note: budget と unitPrice は Prisma では Decimal(15,2) だが、Zod では number で受け取る。
+// JavaScript の number (IEEE 754 倍精度浮動小数点) は約 15-17 桁の精度があり、
+// Decimal(15,2) の最大値 9,999,999,999,999.99 を正確に表現可能。
+// 通常の予算・単価計算では精度問題は発生しない。
+// 極端に大きな金額や精密な金融計算が必要な場合は decimal.js 等の導入を検討。
 const projectSchema = z.object({
   code: z.string().min(1).max(50),
   name: z.string().min(1, '案件名は必須です').max(200),
@@ -60,6 +65,7 @@ const projectUpdateSchema = z.object({
 });
 
 // 参画追加スキーマ
+// Note: unitPrice の Decimal 精度については projectSchema のコメント参照
 const assignmentSchema = z.object({
   employeeId: z.string().uuid('有効な社員IDを指定してください'),
   role: z.string().max(100).optional().nullable(),

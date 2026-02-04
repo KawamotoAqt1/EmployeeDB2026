@@ -66,6 +66,32 @@ const contactSchema = z.object({
   remark: z.string().optional().nullable(),
 });
 
+// 企業作成時のネストされたオブジェクト用スキーマ
+const officeCreateSchema = z.object({
+  name: z.string().min(1).max(200),
+  postalCode: z.string().max(10).optional().nullable(),
+  address: z.string().optional().nullable(),
+  phone: z.string().max(20).optional().nullable(),
+  isHeadquarters: z.boolean().optional().default(false),
+});
+
+const contactCreateSchema = z.object({
+  name: z.string().min(1).max(100),
+  nameKana: z.string().max(100).optional().nullable(),
+  title: z.string().max(100).optional().nullable(),
+  email: z.string().email().max(255).optional().nullable().or(z.literal('')),
+  phone: z.string().max(20).optional().nullable(),
+  mobile: z.string().max(20).optional().nullable(),
+  isPrimary: z.boolean().optional().default(false),
+  remark: z.string().optional().nullable(),
+});
+
+// 企業作成スキーマ（ネストされたオブジェクトを含む）
+const companyCreateSchema = companySchema.extend({
+  offices: z.array(officeCreateSchema).optional(),
+  contacts: z.array(contactCreateSchema).optional(),
+});
+
 /**
  * GET /api/companies
  * 企業一覧（検索、フィルタ、ページネーション）
@@ -205,29 +231,73 @@ router.get('/:id', requireAuth, async (req: Request, res: Response, next: NextFu
  */
 router.post('/', requireAuth, requireEditor, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const data = companySchema.parse(req.body);
+    const data = companyCreateSchema.parse(req.body);
+    const { offices, contacts, ...companyData } = data;
 
     // 企業コードの重複チェック
     const existing = await prisma.company.findUnique({
-      where: { code: data.code },
+      where: { code: companyData.code },
     });
 
     if (existing) {
       throw new AppError('DUPLICATE_CODE', '企業コードが既に使用されています', 400);
     }
 
-    const company = await prisma.company.create({
-      data,
-      include: {
-        _count: {
-          select: {
-            offices: true,
-            departments: true,
-            contacts: true,
-            projects: true,
+    // トランザクションで企業と関連データを作成
+    const company = await prisma.$transaction(async (tx) => {
+      // 企業を作成
+      const newCompany = await tx.company.create({
+        data: companyData,
+      });
+
+      // 拠点を作成
+      if (offices && offices.length > 0) {
+        await tx.companyOffice.createMany({
+          data: offices.map((office, index) => ({
+            companyId: newCompany.id,
+            name: office.name,
+            postalCode: office.postalCode || null,
+            address: office.address || null,
+            phone: office.phone || null,
+            isHeadquarters: office.isHeadquarters || false,
+            sortOrder: index,
+          })),
+        });
+      }
+
+      // 担当窓口を作成
+      if (contacts && contacts.length > 0) {
+        await tx.companyContact.createMany({
+          data: contacts.map((contact) => ({
+            companyId: newCompany.id,
+            name: contact.name,
+            nameKana: contact.nameKana || null,
+            title: contact.title || null,
+            email: contact.email || null,
+            phone: contact.phone || null,
+            mobile: contact.mobile || null,
+            isPrimary: contact.isPrimary || false,
+            remark: contact.remark || null,
+          })),
+        });
+      }
+
+      // 作成した企業を関連データと共に取得
+      return tx.company.findUnique({
+        where: { id: newCompany.id },
+        include: {
+          offices: { orderBy: { sortOrder: 'asc' } },
+          contacts: { orderBy: [{ isPrimary: 'desc' }, { name: 'asc' }] },
+          _count: {
+            select: {
+              offices: true,
+              departments: true,
+              contacts: true,
+              projects: true,
+            },
           },
         },
-      },
+      });
     });
 
     res.status(201).json({
@@ -246,37 +316,102 @@ router.post('/', requireAuth, requireEditor, async (req: Request, res: Response,
 router.put('/:id', requireAuth, requireEditor, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { id } = req.params;
-    const data = companySchema.partial().parse(req.body);
+    if (!id) {
+      throw new AppError('BAD_REQUEST', '企業IDが必要です', 400);
+    }
+    const companyId = id; // Type narrowing: id is now string
+
+    const data = companyCreateSchema.partial().parse(req.body);
+    const { offices, contacts, ...companyData } = data;
 
     // 存在確認
-    const existing = await prisma.company.findUnique({ where: { id } });
+    const existing = await prisma.company.findUnique({ where: { id: companyId } });
     if (!existing) {
       throw new AppError('NOT_FOUND', '企業が見つかりません', 404);
     }
 
     // 企業コードの重複チェック（自分以外）
-    if (data.code && data.code !== existing.code) {
+    if (companyData.code && companyData.code !== existing.code) {
       const duplicate = await prisma.company.findUnique({
-        where: { code: data.code },
+        where: { code: companyData.code },
       });
       if (duplicate) {
         throw new AppError('DUPLICATE_CODE', '企業コードが既に使用されています', 400);
       }
     }
 
-    const company = await prisma.company.update({
-      where: { id },
-      data,
-      include: {
-        _count: {
-          select: {
-            offices: true,
-            departments: true,
-            contacts: true,
-            projects: true,
+    // トランザクションで企業と関連データを更新
+    const company = await prisma.$transaction(async (tx) => {
+      // 企業を更新
+      await tx.company.update({
+        where: { id: companyId },
+        data: companyData,
+      });
+
+      // 拠点を更新（配列が渡された場合のみ）
+      if (offices !== undefined) {
+        // 既存の拠点を削除
+        await tx.companyOffice.deleteMany({
+          where: { companyId },
+        });
+
+        // 新しい拠点を作成
+        if (offices.length > 0) {
+          await tx.companyOffice.createMany({
+            data: offices.map((office, index) => ({
+              companyId,
+              name: office.name,
+              postalCode: office.postalCode || null,
+              address: office.address || null,
+              phone: office.phone || null,
+              isHeadquarters: office.isHeadquarters || false,
+              sortOrder: index,
+            })),
+          });
+        }
+      }
+
+      // 担当窓口を更新（配列が渡された場合のみ）
+      if (contacts !== undefined) {
+        // 既存の担当窓口を削除
+        await tx.companyContact.deleteMany({
+          where: { companyId },
+        });
+
+        // 新しい担当窓口を作成
+        if (contacts.length > 0) {
+          await tx.companyContact.createMany({
+            data: contacts.map((contact) => ({
+              companyId,
+              name: contact.name,
+              nameKana: contact.nameKana || null,
+              title: contact.title || null,
+              email: contact.email || null,
+              phone: contact.phone || null,
+              mobile: contact.mobile || null,
+              isPrimary: contact.isPrimary || false,
+              remark: contact.remark || null,
+            })),
+          });
+        }
+      }
+
+      // 更新した企業を関連データと共に取得
+      return tx.company.findUnique({
+        where: { id: companyId },
+        include: {
+          offices: { orderBy: { sortOrder: 'asc' } },
+          contacts: { orderBy: [{ isPrimary: 'desc' }, { name: 'asc' }] },
+          _count: {
+            select: {
+              offices: true,
+              departments: true,
+              contacts: true,
+              projects: true,
+            },
           },
         },
-      },
+      });
     });
 
     res.status(200).json({

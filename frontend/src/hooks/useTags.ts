@@ -37,13 +37,14 @@ export function useTagList(params: TagSearchParams = {}) {
 }
 
 // 全タグ取得（フィルター用など）
+// バックエンドのZodスキーマでlimitの最大値が100に制限されているため、limit: 100を指定
 export function useAllTags() {
   return useQuery({
     queryKey: tagKeys.lists(),
     queryFn: async () => {
       const response = await apiClient.get(
         API_ENDPOINTS.tags.list,
-        { params: { limit: 1000 } }
+        { params: { limit: 100 } }
       );
       // バックエンドのレスポンス形式: { success: true, data: tags[] }
       const data = response.data;

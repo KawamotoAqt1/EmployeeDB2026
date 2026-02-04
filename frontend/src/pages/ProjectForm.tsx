@@ -16,30 +16,41 @@ export function ProjectForm() {
   const updateProject = useUpdateProject();
 
   const [formData, setFormData] = useState<CreateProjectRequest>({
+    code: '',
     companyId: '',
     departmentId: undefined,
     name: '',
     description: '',
-    status: 'ACTIVE',
+    status: 'PROPOSAL',
     contractType: 'DISPATCH',
-    startDate: '',
-    endDate: '',
+    contractStartDate: '',
+    contractEndDate: '',
+    deliveryDate: '',
+    budget: null,
+    unitPrice: null,
+    location: '',
     remark: '',
   });
 
   const [selectedCompany, setSelectedCompany] = useState<string>('');
+  const [dateError, setDateError] = useState<string>('');
 
   useEffect(() => {
     if (project) {
       setFormData({
+        code: project.code || '',
         companyId: project.companyId,
         departmentId: project.departmentId,
         name: project.name,
         description: project.description,
         status: project.status,
         contractType: project.contractType,
-        startDate: project.startDate ? project.startDate.split('T')[0] : '',
-        endDate: project.endDate ? project.endDate.split('T')[0] : '',
+        contractStartDate: project.contractStartDate ? project.contractStartDate.split('T')[0] : '',
+        contractEndDate: project.contractEndDate ? project.contractEndDate.split('T')[0] : '',
+        deliveryDate: project.deliveryDate ? project.deliveryDate.split('T')[0] : '',
+        budget: project.budget ?? null,
+        unitPrice: project.unitPrice ?? null,
+        location: project.location || '',
         remark: project.remark,
       });
       setSelectedCompany(project.companyId);
@@ -49,12 +60,25 @@ export function ProjectForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // 日付の前後関係をチェック
+    if (formData.contractStartDate && formData.contractEndDate) {
+      if (new Date(formData.contractStartDate) > new Date(formData.contractEndDate)) {
+        setDateError('終了日は開始日以降の日付を指定してください');
+        return;
+      }
+    }
+    setDateError('');
+
     try {
       const submitData = {
         ...formData,
         departmentId: formData.departmentId || undefined,
-        startDate: formData.startDate || undefined,
-        endDate: formData.endDate || undefined,
+        contractStartDate: formData.contractStartDate || undefined,
+        contractEndDate: formData.contractEndDate || undefined,
+        deliveryDate: formData.deliveryDate || undefined,
+        budget: formData.budget ?? undefined,
+        unitPrice: formData.unitPrice ?? undefined,
+        location: formData.location || undefined,
       };
 
       if (isEdit) {
@@ -95,17 +119,34 @@ export function ProjectForm() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">基本情報</h2>
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                案件名 <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  案件コード <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  maxLength={50}
+                  value={formData.code}
+                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="例: PRJ001"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  案件名 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  maxLength={200}
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
             </div>
 
             <div>
@@ -130,8 +171,9 @@ export function ProjectForm() {
                   onChange={(e) => setFormData({ ...formData, status: e.target.value as ProjectStatus })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="ACTIVE">稼働中</option>
-                  <option value="INACTIVE">休止中</option>
+                  <option value="PROPOSAL">提案中</option>
+                  <option value="IN_PROGRESS">進行中</option>
+                  <option value="ON_HOLD">保留</option>
                   <option value="COMPLETED">完了</option>
                   <option value="CANCELLED">キャンセル</option>
                 </select>
@@ -206,15 +248,18 @@ export function ProjectForm() {
         {/* Contract Period */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">契約期間</h2>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 開始日
               </label>
               <input
                 type="date"
-                value={formData.startDate}
-                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                value={formData.contractStartDate}
+                onChange={(e) => {
+                  setFormData({ ...formData, contractStartDate: e.target.value });
+                  setDateError('');
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -224,12 +269,82 @@ export function ProjectForm() {
               </label>
               <input
                 type="date"
-                value={formData.endDate}
-                onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                value={formData.contractEndDate}
+                onChange={(e) => {
+                  setFormData({ ...formData, contractEndDate: e.target.value });
+                  setDateError('');
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                納品日
+              </label>
+              <input
+                type="date"
+                value={formData.deliveryDate}
+                onChange={(e) => setFormData({ ...formData, deliveryDate: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
+          {dateError && (
+            <p className="mt-2 text-sm text-red-600">{dateError}</p>
+          )}
+        </div>
+
+        {/* Budget and Pricing */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">予算・単価</h2>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                予算
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={formData.budget ?? ''}
+                  onChange={(e) => setFormData({ ...formData, budget: e.target.value ? Number(e.target.value) : null })}
+                  className="w-full px-3 py-2 pr-8 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="例: 1000000"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">円</span>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                単価
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={formData.unitPrice ?? ''}
+                  onChange={(e) => setFormData({ ...formData, unitPrice: e.target.value ? Number(e.target.value) : null })}
+                  className="w-full px-3 py-2 pr-8 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="例: 500000"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">円</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Location */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">勤務地</h2>
+          <input
+            type="text"
+            value={formData.location}
+            onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="例: 東京都港区"
+          />
         </div>
 
         {/* Remark */}

@@ -14,8 +14,12 @@ export function CompanyForm() {
   const updateCompany = useUpdateCompany();
 
   const [formData, setFormData] = useState<CreateCompanyRequest>({
+    code: '',
     name: '',
     nameKana: '',
+    postalCode: '',
+    address: '',
+    phone: '',
     industry: '',
     status: 'ACTIVE',
     website: '',
@@ -28,8 +32,12 @@ export function CompanyForm() {
   useEffect(() => {
     if (company) {
       setFormData({
+        code: company.code || '',
         name: company.name,
         nameKana: company.nameKana,
+        postalCode: company.postalCode,
+        address: company.address,
+        phone: company.phone,
         industry: company.industry,
         status: company.status,
         website: company.website,
@@ -39,16 +47,16 @@ export function CompanyForm() {
           postalCode: o.postalCode,
           address: o.address,
           phone: o.phone,
-          isPrimary: o.isPrimary,
+          isHeadquarters: o.isHeadquarters,
         })) || [],
         departments: company.departments?.map(d => ({
           name: d.name,
           parentId: d.parentId,
         })) || [],
         contacts: company.contacts?.map(c => ({
-          fullName: c.fullName,
-          fullNameKana: c.fullNameKana,
-          position: c.position,
+          name: c.name,
+          nameKana: c.nameKana,
+          title: c.title,
           email: c.email,
           phone: c.phone,
           mobile: c.mobile,
@@ -79,7 +87,7 @@ export function CompanyForm() {
       ...formData,
       offices: [
         ...(formData.offices || []),
-        { name: '', postalCode: '', address: '', phone: '', isPrimary: false },
+        { name: '', postalCode: '', address: '', phone: '', isHeadquarters: false },
       ],
     });
   };
@@ -102,7 +110,7 @@ export function CompanyForm() {
       ...formData,
       contacts: [
         ...(formData.contacts || []),
-        { fullName: '', fullNameKana: '', position: '', email: '', phone: '', mobile: '', isPrimary: false },
+        { name: '', nameKana: '', title: '', email: '', phone: '', mobile: '', isPrimary: false, remark: '' },
       ],
     });
   };
@@ -145,17 +153,34 @@ export function CompanyForm() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">基本情報</h2>
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                企業名 <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  企業コード <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  maxLength={50}
+                  value={formData.code}
+                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="例: COMP001"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  企業名 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  maxLength={200}
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -163,6 +188,7 @@ export function CompanyForm() {
               </label>
               <input
                 type="text"
+                maxLength={200}
                 value={formData.nameKana}
                 onChange={(e) => setFormData({ ...formData, nameKana: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -198,6 +224,38 @@ export function CompanyForm() {
                 value={formData.website}
                 onChange={(e) => setFormData({ ...formData, website: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">郵便番号</label>
+                <input
+                  type="text"
+                  value={formData.postalCode}
+                  onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="例: 123-4567"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">電話番号</label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="例: 03-1234-5678"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">住所</label>
+              <textarea
+                rows={2}
+                value={formData.address}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="例: 東京都千代田区..."
               />
             </div>
             <div>
@@ -265,11 +323,11 @@ export function CompanyForm() {
                   <label className="flex items-center">
                     <input
                       type="checkbox"
-                      checked={office.isPrimary}
-                      onChange={(e) => updateOffice(index, 'isPrimary', e.target.checked)}
+                      checked={office.isHeadquarters}
+                      onChange={(e) => updateOffice(index, 'isHeadquarters', e.target.checked)}
                       className="mr-2"
                     />
-                    <span className="text-sm text-gray-700">主要拠点</span>
+                    <span className="text-sm text-gray-700">本社</span>
                   </label>
                 </div>
               </div>
@@ -305,22 +363,22 @@ export function CompanyForm() {
                   <input
                     type="text"
                     placeholder="氏名"
-                    value={contact.fullName}
-                    onChange={(e) => updateContact(index, 'fullName', e.target.value)}
+                    value={contact.name}
+                    onChange={(e) => updateContact(index, 'name', e.target.value)}
                     className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <input
                     type="text"
                     placeholder="氏名（カナ）"
-                    value={contact.fullNameKana}
-                    onChange={(e) => updateContact(index, 'fullNameKana', e.target.value)}
+                    value={contact.nameKana}
+                    onChange={(e) => updateContact(index, 'nameKana', e.target.value)}
                     className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <input
                     type="text"
                     placeholder="役職"
-                    value={contact.position}
-                    onChange={(e) => updateContact(index, 'position', e.target.value)}
+                    value={contact.title}
+                    onChange={(e) => updateContact(index, 'title', e.target.value)}
                     className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <input
@@ -354,6 +412,15 @@ export function CompanyForm() {
                       />
                       <span className="text-sm text-gray-700">主担当</span>
                     </label>
+                  </div>
+                  <div className="col-span-2">
+                    <textarea
+                      placeholder="備考"
+                      rows={2}
+                      value={contact.remark}
+                      onChange={(e) => updateContact(index, 'remark', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
                   </div>
                 </div>
               </div>

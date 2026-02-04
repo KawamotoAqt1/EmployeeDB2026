@@ -24,7 +24,7 @@ export function useProjects(params: ProjectSearchParams = {}) {
     queryKey: projectKeys.list(params),
     queryFn: async () => {
       const apiParams: Record<string, string | number | undefined> = {
-        q: params.keyword,
+        keyword: params.keyword,
         companyId: params.companyId,
         status: params.status,
         contractType: params.contractType,

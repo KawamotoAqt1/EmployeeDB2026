@@ -11,7 +11,9 @@ import {
 import type {
   AddEmployeeSkillRequest,
   SelectOption,
+  ContractType,
 } from '@/types';
+import { ContractTypeLabels } from '@/types';
 
 // 部署オプション
 const departmentOptions: SelectOption[] = [
@@ -66,12 +68,13 @@ const countryOptions: SelectOption[] = [
   { label: 'タイ', value: 'タイ' },
 ];
 
-// 契約形態オプション
+// 契約形態オプション（ContractTypeLabels から動的生成）
 const contractTypeOptions: SelectOption[] = [
   { label: '選択してください', value: '' },
-  { label: '正社員', value: 'FULL_TIME' },
-  { label: '契約社員', value: 'CONTRACT' },
-  { label: 'BP', value: 'OUTSOURCE' },
+  ...Object.entries(ContractTypeLabels).map(([value, label]) => ({
+    label,
+    value: value as ContractType,
+  })),
 ];
 
 // 性別オプション
@@ -302,6 +305,7 @@ export function EmployeeForm() {
               error={errors.employeeNumber}
               required
               placeholder="例: EMP001"
+              maxLength={20}
             />
 
             <Input
@@ -310,6 +314,7 @@ export function EmployeeForm() {
               value={formData.employeeUniqueNumber}
               onChange={handleChange}
               placeholder="例: UNIQUE001"
+              maxLength={50}
             />
 
             <Input
@@ -320,6 +325,7 @@ export function EmployeeForm() {
               error={errors.fullName}
               required
               placeholder="例: 山田 太郎"
+              maxLength={100}
             />
 
             <Input
@@ -328,6 +334,7 @@ export function EmployeeForm() {
               value={formData.fullNameKana}
               onChange={handleChange}
               placeholder="例: ヤマダ タロウ"
+              maxLength={100}
             />
 
             <Input
@@ -337,6 +344,7 @@ export function EmployeeForm() {
               value={formData.email}
               onChange={handleChange}
               placeholder="例: yamada@example.com"
+              maxLength={255}
             />
 
             <Input
@@ -439,6 +447,7 @@ export function EmployeeForm() {
               value={formData.station}
               onChange={handleChange}
               placeholder="例: 新大阪駅"
+              maxLength={100}
             />
 
             <div className="md:col-span-2">
@@ -448,6 +457,7 @@ export function EmployeeForm() {
                 value={formData.residence}
                 onChange={handleChange}
                 placeholder="例: 大阪府大阪市北区..."
+                maxLength={100}
               />
             </div>
           </div>

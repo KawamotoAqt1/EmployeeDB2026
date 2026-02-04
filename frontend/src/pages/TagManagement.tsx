@@ -138,8 +138,9 @@ export function TagManagement() {
     })
   );
 
-  // 管理者でない場合はリダイレクト
-  if (user?.role?.toUpperCase() !== 'ADMIN') {
+  // 編集権限がない場合はリダイレクト（ADMIN または EDITOR のみアクセス可能）
+  const role = user?.role?.toUpperCase();
+  if (role !== 'ADMIN' && role !== 'EDITOR') {
     return <Navigate to="/employees" replace />;
   }
 
@@ -213,7 +214,7 @@ export function TagManagement() {
   // カテゴリ作成
   const handleCreateCategory = async () => {
     try {
-      await createCategory.mutateAsync({ name: categoryForm.name });
+      await createCategory.mutateAsync({ code: categoryForm.code, name: categoryForm.name });
       closeModal();
     } catch (error) {
       console.error('Failed to create category:', error);
@@ -226,7 +227,7 @@ export function TagManagement() {
     try {
       await updateCategory.mutateAsync({
         id: selectedCategory.id,
-        data: { name: categoryForm.name },
+        data: { code: categoryForm.code, name: categoryForm.name },
       });
       closeModal();
     } catch (error) {
@@ -501,6 +502,13 @@ export function TagManagement() {
       >
         <div className="space-y-4">
           <Input
+            label="カテゴリコード"
+            value={categoryForm.code}
+            onChange={(e) => setCategoryForm((prev) => ({ ...prev, code: e.target.value }))}
+            placeholder="例: LANG"
+            required
+          />
+          <Input
             label="カテゴリ名"
             value={categoryForm.name}
             onChange={(e) => setCategoryForm((prev) => ({ ...prev, name: e.target.value }))}
@@ -515,7 +523,7 @@ export function TagManagement() {
               variant="primary"
               onClick={modalType === 'createCategory' ? handleCreateCategory : handleUpdateCategory}
               loading={createCategory.isPending || updateCategory.isPending}
-              disabled={!categoryForm.name.trim()}
+              disabled={!categoryForm.code.trim() || !categoryForm.name.trim()}
             >
               {modalType === 'createCategory' ? '作成' : '更新'}
             </Button>
