@@ -6,7 +6,6 @@ export {
   useUpdateEmployee,
   useDeleteEmployee,
   useAddEmployeeSkill,
-  useUpdateEmployeeSkill,
   useDeleteEmployeeSkill,
   useUploadEmployeeImage,
   employeeKeys,

@@ -502,9 +502,9 @@ router.delete('/:id/skills/:skillId', requireAuth, requireEditor, async (req, re
 
 /**
  * POST /api/employees/:id/image
- * 社員写真アップロード（admin）
+ * 社員写真アップロード（admin/editor）
  */
-router.post('/:id/image', requireAuth, requireAdmin, upload.single('image'), async (req, res, next) => {
+router.post('/:id/image', requireAuth, requireEditor, upload.single('image'), async (req, res, next) => {
   try {
     const id = req.params.id;
     const file = req.file;
@@ -558,9 +558,9 @@ router.post('/:id/image', requireAuth, requireAdmin, upload.single('image'), asy
 
 /**
  * DELETE /api/employees/:id/image
- * 社員写真削除（admin）
+ * 社員写真削除（admin/editor）
  */
-router.delete('/:id/image', requireAuth, requireAdmin, async (req, res, next) => {
+router.delete('/:id/image', requireAuth, requireEditor, async (req, res, next) => {
   try {
     const id = req.params.id;
 

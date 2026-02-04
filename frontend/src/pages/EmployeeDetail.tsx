@@ -1,10 +1,13 @@
 import { useState, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Button, Badge, SkillBadge, Modal } from '@/components/ui';
-import { useEmployee, useDeleteEmployee, useUploadEmployeeImage } from '@/hooks/useEmployees';
+import { useEmployee, useDeleteEmployee, useUploadEmployeeImage, useAddEmployeeSkill } from '@/hooks/useEmployees';
 import { useAuth } from '@/hooks/useAuth';
-import { EmployeeStatusLabels, ContractTypeLabels, type EmployeeSkill, type ContractType } from '@/types';
+import { EmployeeStatusLabels, ContractTypeLabels, SkillLevelLabels, type EmployeeSkill, type ContractType, type SkillLevel } from '@/types';
 import { API_BASE_URL } from '@/api/config';
+
+// Skill level options for the dropdown
+const SKILL_LEVELS: SkillLevel[] = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'];
 
 export function EmployeeDetail() {
   const { id } = useParams<{ id: string }>();
@@ -16,8 +19,10 @@ export function EmployeeDetail() {
   const { data: employee, isLoading, error } = useEmployee(id);
   const deleteEmployee = useDeleteEmployee();
   const uploadImage = useUploadEmployeeImage();
+  const updateSkill = useAddEmployeeSkill();
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [editingSkillId, setEditingSkillId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,6 +52,23 @@ export function EmployeeDetail() {
       navigate('/employees');
     } catch (err) {
       console.error('Delete failed:', err);
+    }
+  };
+
+  const handleSkillLevelChange = async (skill: EmployeeSkill, newLevel: SkillLevel) => {
+    if (!employee || !skill.tag) return;
+
+    try {
+      await updateSkill.mutateAsync({
+        employeeId: employee.id,
+        data: {
+          tagId: skill.tag.id,
+          level: newLevel,
+        },
+      });
+      setEditingSkillId(null);
+    } catch (err) {
+      console.error('Skill level update failed:', err);
     }
   };
 
@@ -292,11 +314,49 @@ export function EmployeeDetail() {
                 <h3 className="text-sm font-medium text-gray-500 mb-2">{categoryName}</h3>
                 <div className="flex flex-wrap gap-2">
                   {skills.map((skill) => (
-                    <SkillBadge
-                      key={skill.id}
-                      name={skill.tag?.name || ''}
-                      level={skill.level}
-                    />
+                    <div key={skill.id} className="relative inline-flex items-center">
+                      {editingSkillId === skill.id && isEditor ? (
+                        <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium border bg-white border-blue-400 shadow-sm">
+                          <span>{skill.tag?.name}</span>
+                          <select
+                            value={skill.level}
+                            onChange={(e) => handleSkillLevelChange(skill, e.target.value as SkillLevel)}
+                            disabled={updateSkill.isPending}
+                            className="ml-1 text-xs border-0 bg-transparent focus:ring-0 cursor-pointer py-0 pr-6 pl-1"
+                            autoFocus
+                            onBlur={() => setEditingSkillId(null)}
+                          >
+                            {SKILL_LEVELS.map((level) => (
+                              <option key={level} value={level}>
+                                {SkillLevelLabels[level]}
+                              </option>
+                            ))}
+                          </select>
+                          {updateSkill.isPending && (
+                            <div className="ml-1 h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600" />
+                          )}
+                        </div>
+                      ) : (
+                        <div
+                          className={`group ${isEditor ? 'cursor-pointer' : ''}`}
+                          onClick={() => isEditor && setEditingSkillId(skill.id)}
+                          title={isEditor ? 'クリックしてレベルを変更' : undefined}
+                        >
+                          <SkillBadge
+                            name={skill.tag?.name || ''}
+                            level={skill.level}
+                            className={isEditor ? 'group-hover:ring-2 group-hover:ring-blue-300 group-hover:ring-offset-1 transition-all' : ''}
+                          />
+                          {isEditor && (
+                            <span className="absolute -top-1 -right-1 hidden group-hover:flex items-center justify-center h-4 w-4 rounded-full bg-blue-500 text-white">
+                              <svg className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                              </svg>
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>
@@ -321,9 +381,9 @@ export function EmployeeDetail() {
         {employee.assignments && employee.assignments.length > 0 ? (
           <div className="space-y-3">
             {employee.assignments
-              .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())
+              .sort((a, b) => new Date(b.assignmentStartDate).getTime() - new Date(a.assignmentStartDate).getTime())
               .map(assignment => {
-                const isActive = !assignment.endDate || new Date(assignment.endDate) > new Date();
+                const isActive = !assignment.assignmentEndDate || new Date(assignment.assignmentEndDate) > new Date();
                 return (
                   <div key={assignment.id} className="border border-gray-200 rounded-lg p-4">
                     <div className="flex items-start justify-between">
@@ -360,9 +420,9 @@ export function EmployeeDetail() {
                       </div>
                       <div className="text-right ml-4">
                         <div className="text-sm text-gray-500">
-                          {new Date(assignment.startDate).toLocaleDateString('ja-JP')}
-                          {assignment.endDate && (
-                            <> ~ {new Date(assignment.endDate).toLocaleDateString('ja-JP')}</>
+                          {new Date(assignment.assignmentStartDate).toLocaleDateString('ja-JP')}
+                          {assignment.assignmentEndDate && (
+                            <> ~ {new Date(assignment.assignmentEndDate).toLocaleDateString('ja-JP')}</>
                           )}
                         </div>
                       </div>

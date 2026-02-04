@@ -104,8 +104,9 @@ export function ProjectList() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">すべて</option>
-                <option value="ACTIVE">稼働中</option>
-                <option value="INACTIVE">休止中</option>
+                <option value="PROPOSAL">提案中</option>
+                <option value="IN_PROGRESS">進行中</option>
+                <option value="ON_HOLD">保留</option>
                 <option value="COMPLETED">完了</option>
                 <option value="CANCELLED">キャンセル</option>
               </select>
@@ -210,13 +211,13 @@ export function ProjectList() {
                     </svg>
                     {ContractTypeProjectLabels[project.contractType]}
                   </div>
-                  {project.startDate && (
+                  {project.contractStartDate && (
                     <div className="flex items-center">
                       <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
-                      {new Date(project.startDate).toLocaleDateString('ja-JP')}
-                      {project.endDate && ` ~ ${new Date(project.endDate).toLocaleDateString('ja-JP')}`}
+                      {new Date(project.contractStartDate).toLocaleDateString('ja-JP')}
+                      {project.contractEndDate && ` ~ ${new Date(project.contractEndDate).toLocaleDateString('ja-JP')}`}
                     </div>
                   )}
                   {project.assignments && project.assignments.length > 0 && (

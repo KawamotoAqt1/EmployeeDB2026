@@ -3,9 +3,23 @@ import { apiClient, API_ENDPOINTS } from '@/api/config';
 import type {
   CompanySearchParams,
   Company,
+  CompanyDepartment,
   CreateCompanyRequest,
+  DepartmentType,
   UpdateCompanyRequest,
 } from '@/types';
+
+// 部署作成リクエスト型
+export interface CreateDepartmentRequest {
+  name: string;
+  type: DepartmentType;
+  parentId?: string | null;
+  officeId?: string | null;
+  sortOrder?: number;
+}
+
+// 部署更新リクエスト型
+export interface UpdateDepartmentRequest extends Partial<CreateDepartmentRequest> {}
 
 // Query keys
 export const companyKeys = {
@@ -105,6 +119,66 @@ export function useDeleteCompany() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: companyKeys.lists() });
+    },
+  });
+}
+
+// ============================================
+// 部署管理フック
+// ============================================
+
+// 部署一覧取得
+export function useCompanyDepartments(companyId: string | undefined) {
+  return useQuery<CompanyDepartment[]>({
+    queryKey: [...companyKeys.detail(companyId!), 'departments'],
+    queryFn: async () => {
+      const response = await apiClient.get(API_ENDPOINTS.companies.departments(companyId!));
+      return response.data.data;
+    },
+    enabled: !!companyId,
+  });
+}
+
+// 部署作成
+export function useCreateDepartment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ companyId, data }: { companyId: string; data: CreateDepartmentRequest }) => {
+      const response = await apiClient.post(API_ENDPOINTS.companies.departments(companyId), data);
+      return response.data.data;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: companyKeys.detail(variables.companyId) });
+    },
+  });
+}
+
+// 部署更新
+export function useUpdateDepartment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ companyId, departmentId, data }: { companyId: string; departmentId: string; data: UpdateDepartmentRequest }) => {
+      const response = await apiClient.put(`${API_ENDPOINTS.companies.departments(companyId)}/${departmentId}`, data);
+      return response.data.data;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: companyKeys.detail(variables.companyId) });
+    },
+  });
+}
+
+// 部署削除
+export function useDeleteDepartment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ companyId, departmentId }: { companyId: string; departmentId: string }) => {
+      await apiClient.delete(`${API_ENDPOINTS.companies.departments(companyId)}/${departmentId}`);
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: companyKeys.detail(variables.companyId) });
     },
   });
 }

@@ -3,7 +3,6 @@ import { apiClient, API_ENDPOINTS } from '@/api/config';
 import type {
   EmployeeSearchParams,
   AddEmployeeSkillRequest,
-  UpdateEmployeeSkillRequest,
   Employee,
 } from '@/types';
 
@@ -137,34 +136,6 @@ export function useAddEmployeeSkill() {
       data: AddEmployeeSkillRequest;
     }) => {
       const response = await apiClient.post(`/employees/${employeeId}/skills`, data);
-      return response.data;
-    },
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: employeeKeys.detail(variables.employeeId),
-      });
-    },
-  });
-}
-
-// スキル更新
-export function useUpdateEmployeeSkill() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({
-      employeeId,
-      skillId,
-      data,
-    }: {
-      employeeId: string;
-      skillId: string;
-      data: UpdateEmployeeSkillRequest;
-    }) => {
-      const response = await apiClient.put(
-        `/employees/${employeeId}/skills/${skillId}`,
-        data
-      );
       return response.data;
     },
     onSuccess: (_data, variables) => {

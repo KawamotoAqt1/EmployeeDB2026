@@ -13,6 +13,11 @@ const loginSchema = z.object({
   password: z.string().min(1, 'パスワードを入力してください'),
 });
 
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, '現在のパスワードを入力してください'),
+  newPassword: z.string().min(6, '新しいパスワードは6文字以上で入力してください'),
+});
+
 /**
  * POST /api/auth/login
  * ログイン
@@ -113,6 +118,60 @@ router.get('/me', requireAuth, async (req: Request, res: Response, next: NextFun
       data: user,
     });
   } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/auth/change-password
+ * パスワード変更
+ */
+router.post('/change-password', requireAuth, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    if (!req.user) {
+      throw new AppError('UNAUTHORIZED', '認証が必要です', 401);
+    }
+
+    // バリデーション
+    const validatedData = changePasswordSchema.parse(req.body);
+    const { currentPassword, newPassword } = validatedData;
+
+    // ユーザー検索
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+    });
+
+    if (!user) {
+      throw new AppError('USER_NOT_FOUND', 'ユーザーが見つかりません', 404);
+    }
+
+    // 現在のパスワードを検証
+    let isValidPassword = false;
+    try {
+      isValidPassword = await bcrypt.compare(currentPassword, user.passwordHash);
+    } catch (bcryptError) {
+      console.error('ChangePassword: bcrypt.compare failed', bcryptError);
+      throw new AppError('INVALID_PASSWORD', '現在のパスワードが正しくありません', 400);
+    }
+
+    if (!isValidPassword) {
+      throw new AppError('INVALID_PASSWORD', '現在のパスワードが正しくありません', 400);
+    }
+
+    // 新しいパスワードをハッシュ化して更新
+    const newPasswordHash = await bcrypt.hash(newPassword, 10);
+
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: { passwordHash: newPasswordHash },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'パスワードを変更しました',
+    });
+  } catch (error) {
+    console.error('[auth/change-password] Error:', error);
     next(error);
   }
 });

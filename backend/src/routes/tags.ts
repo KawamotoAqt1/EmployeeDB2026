@@ -23,6 +23,12 @@ const tagSchema = z.object({
   sortOrder: z.number().int().optional().default(0),
 });
 
+// タグ一覧取得クエリスキーマ
+const tagListQuerySchema = z.object({
+  categoryId: z.string().uuid().optional(),
+  limit: z.coerce.number().int().positive().max(100).optional().default(100),
+});
+
 /**
  * GET /api/tags/categories
  * カテゴリ一覧（タグ含む）
@@ -184,15 +190,16 @@ router.delete('/categories/:id', requireAuth, requireEditor, async (req: Request
  */
 router.get('/', requireAuth, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { categoryId, limit = 1000 } = req.query;
+    const query = tagListQuerySchema.parse(req.query);
+    const { categoryId, limit } = query;
 
     const tags = await prisma.tag.findMany({
-      where: categoryId ? { categoryId: categoryId as string } : undefined,
+      where: categoryId ? { categoryId } : undefined,
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
       include: {
         category: true,
       },
-      take: Number(limit),
+      take: limit,
     });
 
     res.status(200).json({
