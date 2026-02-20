@@ -70,13 +70,13 @@ export function EmployeeList() {
     }
   }, [firstEmployeeId, selectedEmployeeId, setSearchParams]);
 
-  const handleFilter = (newFilters: EmployeeSearchParams) => {
+  const handleFilter = useCallback((newFilters: EmployeeSearchParams) => {
     setFilters(newFilters);
     setPage(1);
     // Clear selection when filters change and allow auto-select for new results
     hasAutoSelected.current = false;
     handleDeselectEmployee();
-  };
+  }, [handleDeselectEmployee]);
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
@@ -328,16 +328,11 @@ export function EmployeeList() {
   );
 
   // Detail panel content
-  // Show loading spinner only on initial load, not when switching between employees
-  const showDetailLoading = isLoadingDetail && !selectedEmployee;
+  // Show loading when fetching a different employee than what's currently displayed
+  const isStaleDetail = selectedEmployee && selectedEmployeeId && selectedEmployee.id !== selectedEmployeeId;
+  const showDetailLoading = isLoadingDetail || isStaleDetail;
   const detailContent = (
     <div className="h-full p-4 relative">
-      {/* Subtle loading indicator when fetching new employee (but we have previous data) */}
-      {isFetchingDetail && selectedEmployee && (
-        <div className="absolute top-2 right-2 z-10">
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-        </div>
-      )}
       {showDetailLoading ? (
         <div className="h-full flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>

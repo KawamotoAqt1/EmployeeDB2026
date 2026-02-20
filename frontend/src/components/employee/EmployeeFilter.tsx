@@ -71,6 +71,12 @@ export function EmployeeFilter({
   const [isExpanded, setIsExpanded] = useState(false);
   const tagPickerRef = useRef<HTMLDivElement>(null);
 
+  // onFilterをrefで保持し、コールバック参照の変化でデバウンスが再トリガーされるのを防ぐ
+  const onFilterRef = useRef(onFilter);
+  useEffect(() => {
+    onFilterRef.current = onFilter;
+  });
+
   // 検索実行（デバウンス付き）
   const executeSearch = useCallback(() => {
     const filters: EmployeeSearchParams = {
@@ -82,8 +88,8 @@ export function EmployeeFilter({
       matchType: matchType,
       tagOperator: 'AND', // タグはAND条件
     };
-    onFilter(filters);
-  }, [keyword, department, position, status, selectedTagIds, matchType, onFilter]);
+    onFilterRef.current(filters);
+  }, [keyword, department, position, status, selectedTagIds, matchType]);
 
   // 条件変更時に自動検索（デバウンス）
   useEffect(() => {
@@ -91,7 +97,7 @@ export function EmployeeFilter({
       executeSearch();
     }, 300);
     return () => clearTimeout(timer);
-  }, [keyword, department, position, status, selectedTagIds, matchType, executeSearch]);
+  }, [executeSearch]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

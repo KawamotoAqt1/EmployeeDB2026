@@ -1,5 +1,13 @@
 import { Avatar, ListItem } from '@/components/ui';
+import { API_BASE_URL } from '@/api/config';
 import type { Employee } from '@/types';
+
+function getPhotoUrl(photoUrl: string | undefined): string | undefined {
+  if (!photoUrl) return undefined;
+  if (photoUrl.startsWith('http')) return photoUrl;
+  const baseUrl = API_BASE_URL.replace('/api', '');
+  return `${baseUrl}${photoUrl}`;
+}
 
 export interface EmployeeListPanelProps {
   /** 社員リスト */
@@ -57,7 +65,7 @@ export function EmployeeListPanel({
           key={employee.id}
           avatar={
             <Avatar
-              src={employee.photoUrl}
+              src={getPhotoUrl(employee.photoUrl)}
               name={employee.fullName}
               size="md"
               alt={employee.fullName}

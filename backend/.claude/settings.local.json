@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ssh root@85.131.250.41 \"echo ''=== Node.js ==='' && node -v 2>/dev/null || echo ''not installed'' && echo ''=== PM2 ==='' && pm2 status 2>/dev/null || echo ''not running'' && echo ''=== Nginx ==='' && systemctl status nginx --no-pager -l 2>/dev/null | head -5 && echo ''=== PostgreSQL ==='' && systemctl status postgresql --no-pager -l 2>/dev/null | head -5 && echo ''=== Project Dir ==='' && ls /var/www/EmployeeDB2026/ 2>/dev/null || echo ''not found'' && echo ''=== Frontend dist ==='' && ls /var/www/EmployeeDB2026/frontend/dist/ 2>/dev/null || echo ''not built'' && echo ''=== Backend dist ==='' && ls /var/www/EmployeeDB2026/backend/dist/ 2>/dev/null || echo ''not built'' && echo ''=== Backend .env ==='' && cat /var/www/EmployeeDB2026/backend/.env 2>/dev/null || echo ''not found''\")",
+      "Bash(ssh:*)",
+      "Bash(ping:*)"
+    ]
+  }
+}

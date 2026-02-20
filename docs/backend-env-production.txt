@@ -1,0 +1,7 @@
+DATABASE_URL="postgresql://employee_user:Kwmt421127!!@localhost:5432/employee_db?schema=public"
+PORT=3001
+NODE_ENV=production
+JWT_SECRET=EEmF8hszoNpGW8+LnP+z1KvLU6zxi5ZUnve/GvfvNn3WQ9G7wFkI0qicyEHr+uevZelzuKDHngUuaS6Onpmp6A==
+JWT_EXPIRES_IN=7d
+CORS_ORIGIN=http://85.131.250.41
+BCRYPT_SALT_ROUNDS=12
